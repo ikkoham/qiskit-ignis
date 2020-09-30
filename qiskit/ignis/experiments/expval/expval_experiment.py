@@ -26,6 +26,7 @@ from qiskit.quantum_info import Statevector
 from qiskit.ignis.experiments.base import Experiment, Generator, Analysis
 from .pauli_method import PauliExpvalGenerator, pauli_analysis_fn
 from .snapshot_method import SnapshotExpvalGenerator, snapshot_analysis_fn
+from .grouping_method import GroupingExpvalGenerator, grouping_analysis_fn
 
 
 class ExpectationValue(Experiment):
@@ -123,6 +124,8 @@ class ExpectationValueGenerator(Generator):
             self._meas_generator = PauliExpvalGenerator(self._op, qubits=qubits)
         elif method == 'snapshot':
             self._meas_generator = SnapshotExpvalGenerator(self._op, qubits=qubits)
+        elif method == 'snapshot_nogrouping':
+            self._meas_generator = GroupingExpvalGenerator(self._op, qubits=qubits, strategy="nogrouping")
         else:
             raise QiskitError("Unrecognized ExpectationValue method: {}".format(method))
 
@@ -240,7 +243,7 @@ class ExpectationValueAnalysis(Analysis):
         self._mitigator = mitigator
 
         # Set analyze function for method
-        if isinstance(method, str) and method not in ['Pauli', 'snapshot']:
+        if isinstance(method, str) and method not in ['Pauli', 'snapshot', 'snapshot_grouping']:
             raise QiskitError("Unrecognized ExpectationValue method: {}".format(method))
         self._method = method
 
@@ -269,6 +272,8 @@ class ExpectationValueAnalysis(Analysis):
             self._analysis_fn = pauli_analysis_fn
         elif method == 'snapshot':
             self._analysis_fn = snapshot_analysis_fn
+        elif method == 'snapshot_nogrouping':
+            self._analysis_fn = grouping_analysis_fn
         elif isinstance(method, str):
             raise QiskitError('Unrecognized expectation value method.')
         else:
@@ -285,7 +290,7 @@ class ExpectationValueAnalysis(Analysis):
             method = self._method
 
         # For snapshots we don't use counts
-        if method == 'snapshot':
+        if method == 'snapshot' or method.split('_')[0] == 'snapshot':
             snapshots = data.data(index).get('snapshots', {}).get('expectation_value', {})
             snapshots['shots'] = data.results[index].shots
             return snapshots
